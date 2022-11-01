@@ -1,0 +1,10 @@
+version: "3"
+services:
+  server:
+    build: .
+    volumes:
+      - ./:/app
+    working_dir: /app
+    command: [ "sh", "-c", "python seed.py && flask run --port=8080 --host=0.0.0.0" ]
+    ports:
+      - "8080:8080"
