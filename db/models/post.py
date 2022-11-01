@@ -35,3 +35,13 @@ class Post(db.Model):
     def get_posts_by_user_id(user_id):
         user = User.query.get(user_id)
         return Post.query.with_parent(user).all()
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "likes": self.likes,
+            "popularity": self.popularity,
+            "reads": self.reads,
+            "tags": self._tags,
+            "text": self.text
+        }
