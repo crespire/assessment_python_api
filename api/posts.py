@@ -67,8 +67,9 @@ def get_posts():
 
     # Create payload
     posts = db.session.query(Post).join(UserPost).filter(UserPost.user_id.in_((author_ids))).all()
+    posts_set = set(posts)
+    posts = (list(posts_set))
     sortBool = True if sortDir == 'desc' else False
-
     if sortProp == 'likes':            
         posts.sort(key=lambda x: x.likes, reverse=sortBool)
     elif sortProp == 'reads':
@@ -78,6 +79,47 @@ def get_posts():
 
     json_posts = []
     for post in posts:
+        print(post.users)
         json_posts.append(post.serialize())
 
     return jsonify({"posts": json_posts}), 200
+
+@api.route("/posts/<post_id>", methods=["PATCH"])
+@auth_required
+def update_post(post_id=None):
+    user = g.get("user")
+    if user is None:
+        return abort(401)
+
+    if post_id is None:
+        return jsonify({"error": "Must have a post id"}), 400
+
+    post = Post.query.get(post_id)
+
+    if user not in post.users:
+        return jsonify({"error": "That post is not yours."}), 401
+
+    data = request.get_json(force=True)
+    authors = data.get("authorIds", None) or None
+    tags = data.get("tags", None) or None
+    text = data.get("text", None) or None
+
+    if authors is not None and type(authors) is list:
+        db.session.execute(UserPost.__table__.delete().where(post_id == post_id))
+        for id in authors:
+            db.session.add(UserPost(user_id=id, post_id=post_id))
+    
+    if tags is not None and type(tags) is list:
+        post.tags = tags
+    
+    if text is not None and type(text) is str:
+        post.text = text
+
+    db.session.commit()
+
+    post = Post.query.get(post_id)
+    post_output = row_to_dict(post)
+    post_output["authorIds"] = authors
+    post_output["id"] = post_id
+    
+    return jsonify(post_output), 200
