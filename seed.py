@@ -109,20 +109,6 @@ def seed(db):
     db.session.add(cheng)
     db.session.commit()
 
-    # post 5: single-author
-    post5 = Post(
-        text="This is post 5",
-        likes=50,
-        reads=300,
-        tags=["vacation", "spa"],
-        popularity=0.4,
-    )
-    db.session.add(post5)
-    db.session.commit()
-
-    db.session.add(UserPost(user_id=julia.id, post_id=post5.id))
-    db.session.commit()
-
     print("seeded users and posts")
 
 

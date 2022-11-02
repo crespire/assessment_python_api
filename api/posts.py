@@ -6,10 +6,8 @@ from db.models.user_post import UserPost
 from db.models.post import Post
 
 from db.utils import row_to_dict
+from db.utils import rows_to_list
 from middlewares import auth_required
-
-import json
-
 
 @api.post("/posts")
 @auth_required
@@ -69,6 +67,7 @@ def get_posts():
     posts = db.session.query(Post).join(UserPost).filter(UserPost.user_id.in_((author_ids))).all()
     posts_set = set(posts)
     posts = (list(posts_set))
+
     sortBool = True if sortDir == 'desc' else False
     if sortProp == 'likes':            
         posts.sort(key=lambda x: x.likes, reverse=sortBool)
@@ -76,13 +75,11 @@ def get_posts():
         posts.sort(key=lambda x: x.reads, reverse=sortBool)
     elif sortProp == 'popularity':
         posts.sort(key=lambda x: x.popularity, reverse=sortBool)
+    else:
+        posts.sort(key=lambda x: x.id, reverse=sortBool)
 
-    json_posts = []
-    for post in posts:
-        print(post.users)
-        json_posts.append(post.serialize())
-
-    return jsonify({"posts": json_posts}), 200
+    response = {"posts": rows_to_list(posts)}
+    return response, 200
 
 @api.route("/posts/<post_id>", methods=["PATCH"])
 @auth_required
@@ -119,7 +116,15 @@ def update_post(post_id=None):
 
     post = Post.query.get(post_id)
     post_output = row_to_dict(post)
-    post_output["authorIds"] = authors
-    post_output["id"] = post_id
+    if authors is not None:
+        post_output["authorIds"] = authors
+    else:
+        authors = db.session.query(UserPost.user_id).filter(UserPost.post_id == post_id).all()
+        id_list = []
+        for entry in authors:
+            id_list.append(list(entry).pop(0))
+        post_output["authorIds"] = id_list
+        
+    post_output["id"] = int(post_id)
     
-    return jsonify(post_output), 200
+    return {"post": post_output}, 200

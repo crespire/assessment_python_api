@@ -8,7 +8,7 @@ def test_get_posts(client):
     token = make_token(2)
     query_params = {"authorIds": "2"}
     response = client.get(
-        "/api/posts", headers={"x-access-token": token}, query_string=query_params
+        "/api/posts", headers={"x-access-token": token}, json=query_params
     )
 
     assert json.dumps(response.json, sort_keys=True) == json.dumps(
@@ -29,7 +29,7 @@ def test_update_all_properties(client):
             "x-access-token": token,
             "Content-Type": "application/json",
         },
-        data=json.dumps(data),
+        json=data,
     )
 
     assert json.dumps(response.json, sort_keys=True) == json.dumps(

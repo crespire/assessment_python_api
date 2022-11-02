@@ -38,10 +38,10 @@ class Post(db.Model):
 
     def serialize(self):
         return {
-            "id": self.id,
-            "likes": self.likes,
-            "popularity": self.popularity,
-            "reads": self.reads,
             "tags": self._tags,
+            "id": int(self.id),
+            "likes": int(self.likes),
+            "popularity": float(self.popularity),
+            "reads": int(self.reads),
             "text": self.text
         }
