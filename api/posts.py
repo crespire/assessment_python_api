@@ -9,13 +9,16 @@ from db.utils import row_to_dict
 from db.utils import rows_to_list
 from middlewares import auth_required
 
+VALID_PROPS = ['id', 'likes', 'reads', 'popularity']
+VALID_SORTS = ['asc', 'desc']
+
 @api.post("/posts")
 @auth_required
 def posts():
     # validation
     user = g.get("user")
     if user is None:
-        return abort(401)
+        return jsonify({"error": "Not authorized."}), 401
 
     data = request.get_json(force=True)
     text = data.get("text", None)
@@ -44,39 +47,41 @@ def get_posts():
     # validation
     user = g.get("user")
     if user is None:
-        return abort(401)
+        return jsonify({"error": "Not authorized."}), 401
 
     data = request.get_json(force=True)
-    authors = data.get("authorIds", None)
-    sortProp = data.get("sortBy", None) or 'id'
-    sortDir = data.get("direction", None) or 'asc'
-    valid_props = ['id', 'likes', 'reads', 'popularity']
-    valid_dir = ['asc', 'desc']
+    authors = data.get("authorIds", None) or None
+    raw_list = authors.split(",")
+    author_ids = []
+    for id in raw_list:
+        if id.__len__() > 0 and int(id) not in author_ids:
+            author_ids.append(int(id))
+
+    sort_prop = data.get("sortBy", None) or 'id'
+    sort_input = data.get("direction", None) or 'asc'
+    sort_desc = True if sort_input == 'desc' else False
     if authors is None:
         return jsonify({"error": "Must provide author IDs"}), 400
     
-    if sortProp not in valid_props:
-        return jsonify({"error": "Sort property must one of: 'id', 'reads', 'likes' or 'popularity'. got '%s'" %(sortProp)}), 400
+    if sort_prop not in VALID_PROPS:
+        return jsonify({"error": "Sort property must one of: 'id', 'reads', 'likes' or 'popularity'. got '%s'" %(sort_prop)}), 400
 
-    if sortDir not in valid_dir:
-        return jsonify({"error": "Sort direction not supported: '%s'" %(sortDir)}), 400
-
-    author_ids = list(map(int, authors.split(",")))
+    if sort_input not in VALID_SORTS:
+        return jsonify({"error": "Sort direction not supported: '%s'" %(sort_input)}), 400
 
     # Create payload
     posts = db.session.query(Post).join(UserPost).filter(UserPost.user_id.in_((author_ids))).all()
     posts_set = set(posts)
     posts = (list(posts_set))
 
-    sortBool = True if sortDir == 'desc' else False
-    if sortProp == 'likes':            
-        posts.sort(key=lambda x: x.likes, reverse=sortBool)
-    elif sortProp == 'reads':
-        posts.sort(key=lambda x: x.reads, reverse=sortBool)
-    elif sortProp == 'popularity':
-        posts.sort(key=lambda x: x.popularity, reverse=sortBool)
+    if sort_prop == 'likes':            
+        posts.sort(key=lambda post: post.likes, reverse=sort_desc)
+    elif sort_prop == 'reads':
+        posts.sort(key=lambda post: post.reads, reverse=sort_desc)
+    elif sort_prop == 'popularity':
+        posts.sort(key=lambda post: post.popularity, reverse=sort_desc)
     else:
-        posts.sort(key=lambda x: x.id, reverse=sortBool)
+        posts.sort(key=lambda post: post.id, reverse=sort_desc)
 
     response = {"posts": rows_to_list(posts)}
     return response, 200
@@ -92,6 +97,8 @@ def update_post(post_id=None):
         return jsonify({"error": "Must have a post id"}), 400
 
     post = Post.query.get(post_id)
+    if post is None:
+        return jsonify({"error": "Post does not exist."}), 404
 
     if user not in post.users:
         return jsonify({"error": "That post is not yours."}), 401
