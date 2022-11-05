@@ -1,4 +1,5 @@
 from flask import jsonify, request, g, abort
+from sqlalchemy import desc, asc
 
 from api import api
 from db.shared import db
@@ -12,7 +13,7 @@ from middlewares import auth_required
 
 VALID_PROPS = ['id', 'likes', 'reads', 'popularity']
 VALID_SORTS = ['asc', 'desc']
-DESC_STRING = [VALID_SORTS[1]]
+DESC_STRING = 'desc'
 
 @api.post("/posts")
 @auth_required
@@ -53,6 +54,10 @@ def get_posts():
 
     data = request.get_json(force=True)
     authors = data.get("authorIds", None) or None
+
+    if type(authors) is not str:
+        return jsonify({"error": "Author IDs must be a string."})
+
     raw_list = authors.split(",")
     author_ids = []
     for id in raw_list:
@@ -61,7 +66,7 @@ def get_posts():
 
     sort_prop = data.get("sortBy", None) or 'id'
     sort_input = data.get("direction", None) or 'asc'
-    sort_desc = True if sort_input == DESC_STRING else False
+
     if authors is None:
         return jsonify({"error": "Must provide author IDs"}), 400
     
@@ -71,21 +76,28 @@ def get_posts():
     if sort_input not in VALID_SORTS:
         return jsonify({"error": "Sort direction not supported: '%s'" %(sort_input)}), 400
 
-    # Create payload
-    posts = db.session.query(Post).join(UserPost).filter(UserPost.user_id.in_((author_ids))).all()
-    posts_set = set(posts)
-    posts = (list(posts_set))
-
-    if sort_prop == 'likes':            
-        posts.sort(key=lambda post: post.likes, reverse=sort_desc)
-    elif sort_prop == 'reads':
-        posts.sort(key=lambda post: post.reads, reverse=sort_desc)
-    elif sort_prop == 'popularity':
-        posts.sort(key=lambda post: post.popularity, reverse=sort_desc)
+    sort_desc = True if sort_input == DESC_STRING else False
+  
+    if sort_prop == "likes":
+        sort_obj = Post.likes
+    elif sort_prop == "reads":
+        sort_obj = Post.reads
+    elif sort_prop == "popularity":
+        sort_obj = Post.popularity
     else:
-        posts.sort(key=lambda post: post.id, reverse=sort_desc)
+        sort_obj = Post.id
 
-    response = {"posts": rows_to_list(posts)}
+    posts = db.session.query(Post).join(UserPost).filter(UserPost.user_id.in_((author_ids))).order_by(sort_obj).all()
+
+    unique_posts = []
+    for post in posts:
+        if post not in unique_posts:
+            unique_posts.append(post)
+
+    if sort_desc:
+        unique_posts.reverse()
+
+    response = {"posts": rows_to_list(unique_posts)}
     return response, 200
 
 @api.route("/posts/<post_id>", methods=["PATCH"])
