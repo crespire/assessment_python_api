@@ -38,7 +38,7 @@ class Post(db.Model):
 
     def serialize(self):
         return {
-            "tags": self._tags,
+            "tags": self.tags,
             "id": int(self.id),
             "likes": int(self.likes),
             "popularity": float(self.popularity),
