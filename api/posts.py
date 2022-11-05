@@ -103,7 +103,7 @@ def update_post(post_id=None):
         return jsonify({"error": f"Post with id {post_id} does not exist."}), 404
 
     if user not in post.users:
-        return jsonify({"error": "That post is not yours."}), 401
+        return jsonify({"error": "That post is not yours."}), 403
 
     data = request.get_json(force=True)
     authors = data.get("authorIds", None) or None
@@ -112,10 +112,15 @@ def update_post(post_id=None):
         for id in authors:
             user = User.query.get(id)
             if user is None:
-                return jsonify({"error": f"Could not find user with id {id}"}), 400
+                return jsonify({"error": f"Could not find user with id {id}"}), 404
 
     tags = data.get("tags", None) or None
+    if tags is not None and type(tags) is not list:
+        return jsonify({"error": "Tags are not a list."}), 400
+
     text = data.get("text", None) or None
+    if text is not None and type(text) is not str:
+        return jsonify({"error": "Text needs to be a string."}), 400
 
     current_author_ids = [record.user_id for record in db.session.query(UserPost.user_id).filter_by(post_id=post_id)]
 
