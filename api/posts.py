@@ -108,15 +108,18 @@ def update_post(post_id=None):
     data = request.get_json(force=True)
     authors = data.get("authorIds", None) or None
     
-    if authors is not None:
-        for id in authors:
-            user = User.query.get(id)
-            if user is None:
-                return jsonify({"error": f"Could not find user with id {id}"}), 404
+    if authors is not None and type(authors) is not list:
+        return jsonify({"error": "Author IDs must be a list"}), 400
+
+    if authors is not None and not all(isinstance(id, int) for id in authors):
+        return jsonify({"error": "Author IDs must be a list of integers"}), 400
 
     tags = data.get("tags", None) or None
     if tags is not None and type(tags) is not list:
-        return jsonify({"error": "Tags are not a list."}), 400
+        return jsonify({"error": "Tags must be a list of strings."}), 400
+
+    if tags is not None and not all(isinstance(tag, str) for tag in tags):
+        return jsonify({"error": "Tags must all be strings"}), 400
 
     text = data.get("text", None) or None
     if text is not None and type(text) is not str:
@@ -125,7 +128,11 @@ def update_post(post_id=None):
     current_author_ids = [record.user_id for record in db.session.query(UserPost.user_id).filter_by(post_id=post_id)]
 
     if authors is not None and type(authors) is list:
-              
+        for id in authors:
+            user = User.query.get(id)
+            if user is None:
+                return jsonify({"error": f"Could not find user with id {id}"}), 404
+                        
         authors_to_add = []
         authors_to_delete = []
         
