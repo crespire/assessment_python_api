@@ -1,5 +1,5 @@
 # Why
-This was a technical assessment I completed in October 2022.
+This was a technical assessment I completed in October 2022. It is a Python project written with Flask.
 
 # Getting Started
 
